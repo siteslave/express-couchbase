@@ -1,9 +1,9 @@
-import knex = require('knex');
+import couchbase = require('couchbase');
 
 declare global {
   namespace Express {
     export interface Request {
-      db: knex;
+      bucket: couchbase.Bucket;
       decoded: any;
     }
   }

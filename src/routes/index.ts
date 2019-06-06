@@ -4,30 +4,35 @@ import * as express from 'express';
 import { Router, Request, Response } from 'express';
 import * as HttpStatus from 'http-status-codes';
 // import model
-// import { TestModel } from "../models/test";
-import { JwtModel } from "../models/jwt";
+import { TestModel } from "../models/test";
 
-// const testModel = new TestModel();
-const jwtModel = new JwtModel();
+const testModel = new TestModel();
 
 const router: Router = Router();
 
 router.get('/', async (req: Request, res: Response) => {
-  var token = jwtModel.sign({ hello: 'xxx' });
-  console.log(token);
-  res.send({ ok: true, message: 'Welcome to RESTful api server!', code: HttpStatus.OK });
+  try {
+    const results: any = await testModel.testData(req.bucket);
+    res.send({ ok: true, results: results.value });
+  } catch (error) {
+    res.send({ ok: false, error: error.message });
+  }
+
 });
 
-router.get('/verify', async (req: Request, res: Response) => {
-  var token = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJoZWxsbyI6Inh4eCIsImlhdCI6MTU1NjYwODQ4MiwiZXhwIjoxNTU2Njk0ODgyfQ.2iUfTQoyMhleJAGdmyXAgd82i1bPxeUNH8r96O-Cbys`;
+router.get('/query', async (req: Request, res: Response) => {
   try {
-    var decoded = await jwtModel.verify(token);
-    console.log(decoded);
-    // console.log(message);
-    res.send({ ok: true, payload: decoded });
+    testModel.testDataQuery(req.bucket, (err: any, rows: any) => {
+      if (err) {
+        res.send({ ok: false, error: err.message });
+      } else {
+        res.send({ ok: true, rows: rows });
+      }
+    });
   } catch (error) {
-    res.send({ ok: false, error: error.message, code: HttpStatus.INTERNAL_SERVER_ERROR });
+    res.send({ ok: false, error: error.message });
   }
+
 });
 
 export default router;

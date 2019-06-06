@@ -8,10 +8,10 @@ import * as ejs from 'ejs';
 import * as HttpStatus from 'http-status-codes';
 import * as express from 'express';
 import * as cors from 'cors';
-
 import rateLimit = require("express-rate-limit");
 import helmet = require('helmet');
-import knex = require('knex');
+
+import * as couchbase from 'couchbase';
 
 import { Router, Request, Response, NextFunction } from 'express';
 
@@ -20,7 +20,6 @@ require('dotenv').config({ path: path.join(__dirname, '../config') });
 
 import { JwtModel } from './models/jwt';
 import indexRoute from './routes/index';
-import { MySqlConnectionConfig } from 'knex';
 
 const jwtModel = new JwtModel();
 
@@ -45,9 +44,9 @@ app.use(helmet.hidePoweredBy({ setTo: 'PHP 4.2.0' }))
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 10000 // limit each IP to 100 requests per windowMs
 });
- 
+
 // limit for all route
 app.use(limiter);
 // limit for only route
@@ -55,32 +54,12 @@ app.use(limiter);
 
 app.use(cors());
 
-const connection: MySqlConnectionConfig = {
-  host: process.env.DB_HOST,
-  port: +process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  multipleStatements: true,
-  debug: true
-}
-
-const db = knex({
-  client: 'mysql',
-  connection: connection,
-  pool: {
-    min: 0,
-    max: 100,
-    afterCreate: (conn: any, done: any) => {
-      conn.query('SET NAMES utf8', (err: any) => {
-        done(err, conn);
-      });
-    }
-  },
-});
+const cluster = new couchbase.Cluster('couchbase://203.157.103.131/');
+cluster.authenticate('admin', 'ict@M0pl-l');
+var bucket = cluster.openBucket('fhirdb');
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  req.db = db;
+  req.bucket = bucket;
   next();
 });
 
@@ -104,7 +83,7 @@ const auth = async (req: Request, res: Response, next: NextFunction) => {
       ok: false,
       error: HttpStatus.getStatusText(HttpStatus.UNAUTHORIZED),
       code: HttpStatus.UNAUTHORIZED
-    }); 
+    });
   }
 }
 
